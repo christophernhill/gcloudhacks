@@ -1,0 +1,10 @@
+#
+# Commands for launching Jupyter lab on a VM or other machine
+#
+sudo bash -c 'su -l cnh' <<'EOFA'
+cd condas
+export PATH="`pwd`/miniconda3/bin:$PATH"
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${PATH}
+source activate defaultconda
+jupyter lab --no-browser --config=myconf.py --NotebookApp.notebook_dir=~ --notebook-dir=~
+EOFA

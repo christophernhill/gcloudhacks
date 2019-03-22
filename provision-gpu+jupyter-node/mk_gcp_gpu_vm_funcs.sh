@@ -48,7 +48,7 @@ function configure_gcp_vm {
  $dr -- sudo yum -y install boost-gnu8-openmpi3-ohpc fftw-gnu8-openmpi3-ohpc hypre-gnu8-openmpi3-ohpc mfem-gnu8-openmpi3-ohpc
  $dr -- sudo yum -y install mumps-gnu8-openmpi3-ohpc opencoarrays-gnu8-openmpi3-ohpc petsc-gnu8-openmpi3-ohpc ptscotch-gnu8-openmpi3-ohpc scalapack-gnu8-openmpi3-ohpc
  $dr -- sudo yum -y install slepc-gnu8-openmpi3-ohpc superlu_dist-gnu8-openmpi3-ohpc trilinos-gnu8-openmpi3-ohpc
- $dr -- sudo yum -y install hdf5 octave
+ $dr -- sudo yum -y install hdf5 octave octave-'*' nco fuse sshfs
  $dr -- sudo yum -y install qtermwidget-qt5 qtermwidget-qt5-devel
 
  $dr -- sudo yum -y install python36 python36-pip python34-pip python-pip python34-devel
@@ -65,7 +65,8 @@ function configure_gcp_vm {
  NVTNAME=cuda_10.1.105_418.39_linux.run
  NVDRIVER=scripts/nvidia/${NVDNAME}
  NVTOOLKIT=scripts/nvidia/${NVTNAME}
- dr="docker run --rm -it --volumes-from ${GCP_SESSION_NAME} --mount type=volume,source=${GCP_SESSION_NAME}-dotssh,target=/root/.ssh google/cloud-sdk gcloud compute ssh cnh-google@${GCP_SESSION_NAME}"
+ # dr="docker run --rm -it --volumes-from ${GCP_SESSION_NAME} --mount type=volume,source=${GCP_SESSION_NAME}-dotssh,target=/root/.ssh google/cloud-sdk gcloud compute ssh cnh-google@${GCP_SESSION_NAME}"
+ dr="docker exec -it ${GCP_SESSION_NAME} google/cloud-sdk gcloud compute ssh cnh-google@${GCP_SESSION_NAME}"
 
  # Kernel driver
  $dr -- sudo yum -y groupinstall "Development tools"
@@ -88,21 +89,19 @@ function configure_gcp_vm {
  $dr -- wget https://julialang-s3.julialang.org/bin/linux/x64/1.1/julia-1.1.0-linux-x86_64.tar.gz
  $dr -- wget https://julialang-s3.julialang.org/bin/linux/x64/1.0/julia-1.0.3-linux-x86_64.tar.gz
  $dr -- wget https://julialang-s3.julialang.org/bin/linux/x64/0.6/julia-0.6.4-linux-x86_64.tar.gz
+ $dr -- sudo mkdir -p /opt/julia
+ $dr -- cd /opt/julia \; sudo tar -xzvf /home/cnh-google/julia-1.1.0-linux-x86_64.tar.gz
+ $dr -- cd /opt/julia \; sudo tar -xzvf /home/cnh-google/julia-1.0.3-linux-x86_64.tar.gz
+ $dr -- cd /opt/julia \; sudo tar -xzvf /home/cnh-google/julia-0.6.4-linux-x86_64.tar.gz
 
  ## Now create user, conda setup and get github code
- dr="docker run --rm -it --volumes-from ${GCP_SESSION_NAME} --mount type=volume,source=${GCP_SESSION_NAME}-dotssh,target=/root/.ssh google/cloud-sdk gcloud compute ssh cnh-google@${GCP_SESSION_NAME}"
  $dr -- sudo adduser cnh
- # mkdir condas
- # cd condas
- # wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
- # chmod +x  ./Miniconda3-latest-Linux-x86_64.sh
- # ./Miniconda3-latest-Linux-x86_64.sh -b -p `pwd`/miniconda3
- # export PATH="`pwd`/miniconda3/bin:$PATH"
- # conda create -y -n defaultconda -c conda-forge python=3.7 dask distributed xarray jupyterlab mpi4py matplotlib basemap pillow astropy netCDF4
- # source activate defaultconda
- # conda install -y -c conda-forge jupyter_contrib_nbextensions
- # conda install -y -c conda-forge jupyter_nbextensions_configurator
- # conda install -c conda-forge octave_kernel
+ $dr -- sudo -u cnh mkdir condas
+ $dr -- sudo -i -u cnh 'bash -c "cd condas; wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh; pwd; ls -altr ; chmod +x  ./Miniconda3-latest-Linux-x86_64.sh"'
+ $dr -- sudo -i -u cnh 'bash -c "./Miniconda3-latest-Linux-x86_64.sh -b -p `pwd`/miniconda3"'
+ $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; conda create -y -n defaultconda -c conda-forge python=3.7 dask distributed xarray jupyterlab mpi4py matplotlib basemap pillow astropy netCDF4"'
+ $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; conda install -y -c conda-forge jupyter_contrib_nbextensions jupyter_nbextensions_configurator octave_kernel"'
+ $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; /opt/julia/julia-1.1.0/bin/julia -e \"] add IJulia\""'
  # /opt/julia/julia-1.1.0/bin/julia
  #  ] add IJulia
  # 
@@ -110,6 +109,17 @@ function configure_gcp_vm {
  ## Now fuse mount directories (using some deamon to remount if needed)
  # ECCO from object store (need to add auth)
  # remote directories of engaging (for example)
+}
+
+function run_jlab{
+ # Start a Jpuyter lab session in a screen on remote machine
+ docker cp launch-jl.src ${GCP_SESSION_NAME}:.
+ docker exec -it ${GCP_SESSION_NAME} gcloud compute scp launch-jl.src cnh-google@${GCP_SESSION_NAME}:
+ docker exec -it ${GCP_SESSION_NAME} gcloud compute ssh --ssh-flag='-t' --ssh-flag='-L 8889:localhost:8888' --ssh-flag=-4 cnh-google@${GCP_SESSION_NAME} -- 'set -exv;screen -L -S jlab -d -m /bin/bash -c source\ launch-jl.src;screen -list'
+}
+
+function stop_jlab{
+ docker exec -it ${GCP_SESSION_NAME} gcloud compute ssh --ssh-flag='-t' --ssh-flag='-L 8889:localhost:8888' --ssh-flag=-4 cnh-google@${GCP_SESSION_NAME} -- screen -XS jlab quit
 }
 
 # function run_jlab{
