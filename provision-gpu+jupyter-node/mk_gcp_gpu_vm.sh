@@ -8,10 +8,14 @@ export GCP_SESSION_NAME=cnh-sess01
 echo $1
 
 # Step 1
-# create_local_container
+create_local_container
 
 # Step 2
 # start_gcp_vm
 
 # Step 3
 # configure_gcp_vm 
+
+# Note - peridodically the Google auth credentials will need renewing
+#        to do this run "gloud auth login" in the docker management session
+#        and then use URL and browser to get new credentials

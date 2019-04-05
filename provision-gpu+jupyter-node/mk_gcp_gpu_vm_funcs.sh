@@ -49,7 +49,7 @@ function configure_gcp_vm {
  $dr -- sudo yum -y install mumps-gnu8-openmpi3-ohpc opencoarrays-gnu8-openmpi3-ohpc petsc-gnu8-openmpi3-ohpc ptscotch-gnu8-openmpi3-ohpc scalapack-gnu8-openmpi3-ohpc
  $dr -- sudo yum -y install slepc-gnu8-openmpi3-ohpc superlu_dist-gnu8-openmpi3-ohpc trilinos-gnu8-openmpi3-ohpc
  $dr -- sudo yum -y install hdf5 octave octave-'*' nco fuse sshfs
- $dr -- sudo yum -y install qtermwidget-qt5 qtermwidget-qt5-devel
+ $dr -- sudo yum -y install qtermwidget-qt5 qtermwidget-qt5-devel 'texlive-*'
 
  $dr -- sudo yum -y install python36 python36-pip python34-pip python-pip python34-devel
  $dr -- sudo pip2.7 install netCDF4
@@ -95,12 +95,15 @@ function configure_gcp_vm {
  $dr -- cd /opt/julia \; sudo tar -xzvf /home/cnh-google/julia-0.6.4-linux-x86_64.tar.gz
 
  ## Now create user, conda setup and get github code
+ ## conda install -c conda-forge jupytext
  $dr -- sudo adduser cnh
  $dr -- sudo -u cnh mkdir condas
  $dr -- sudo -i -u cnh 'bash -c "cd condas; wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh; pwd; ls -altr ; chmod +x  ./Miniconda3-latest-Linux-x86_64.sh"'
  $dr -- sudo -i -u cnh 'bash -c "./Miniconda3-latest-Linux-x86_64.sh -b -p `pwd`/miniconda3"'
  $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; conda create -y -n defaultconda -c conda-forge python=3.7 dask distributed xarray jupyterlab mpi4py matplotlib basemap pillow astropy netCDF4"'
- $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; conda install -y -c conda-forge jupyter_contrib_nbextensions jupyter_nbextensions_configurator octave_kernel"'
+ $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; conda install -y -c conda-forge jupyter_contrib_nbextensions jupyter_nbextensions_configurator octave_kernel npm jupytext"'
+ $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; jupyter labextension install jupyterlab-drawio"'
+ $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; jupyter labextension install jupyterlab-jupytext"'
  $dr -- sudo -i -u cnh 'bash -c "export PATH=`pwd`/miniconda3/bin:$PATH ; source activate defaultconda ; /opt/julia/julia-1.1.0/bin/julia -e \"] add IJulia\""'
  # /opt/julia/julia-1.1.0/bin/julia
  #  ] add IJulia
