@@ -16,6 +16,7 @@ BUCKET_RM_TEST = "rm -v bucket/\`hostname\`"
 
 GIT_CLONE_CMD = "rm -rf Oceananigans.jl/; git clone https://github.com/climate-machine/Oceananigans.jl.git"
 JL_ACTIVATE_CMD = r"cd Oceananigans.jl/; " + JULIA + r" --project -e 'using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.build();'"
+JL_ADD_PKG_CMD = r"cd Oceananigans.jl/; " + JULIA + r" --project -e 'using Pkg; Pkg.add(\"ArgParse\");'"
 
 zones = ["us-west1-b", "us-central1-b", "asia-east1-c", "europe-west4-c"]
 
@@ -113,7 +114,7 @@ if __name__ == "__main__":
                     "Q": Q,
                     "dTdz": dTdz,
                     "kappa": kappa,
-                    "dt": 3 if Q < -75 else 2,
+                    "dt": 3 if abs(Q) < 75 else 2,
                     "days": 8,
                     "odir": "~/bucket/free_convection/"
                 })
