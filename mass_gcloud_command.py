@@ -45,6 +45,17 @@ def spin_up_instances(name, username):
     # TODO? Wait until all instances have spun up? We can print periodic status updates.
 
     return instances
+def poll_processes(instances, sleep_time=1):
+    processes_done = 0
+    while processes_done < len(instances):
+        for instance in instances:
+            if instance["process"].poll() is not None:
+                processes_done += 1
+        if processes_done < len(instances):
+            logger.info("{:d}/{:d} processes done. Sleeping for {:f} seconds...".format(processes_done, len(instances), sleep_time))
+            sleep(sleep_time)
+        else:
+            logger.info("{:d}/{:d} processes done.".format(processes_done, len(instances)))
 
 
 def delete_instances(instances, username):
