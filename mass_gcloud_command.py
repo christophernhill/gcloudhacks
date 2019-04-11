@@ -15,8 +15,7 @@ BUCKET_WRITE_TEST = "touch bucket/\`hostname\`"
 BUCKET_RM_TEST = "rm -v bucket/\`hostname\`"
 
 GIT_CLONE_CMD = "rm -rf Oceananigans.jl/; git clone https://github.com/climate-machine/Oceananigans.jl.git"
-JL_ACTIVATE_CMD = "cd Oceananigans.jl/; " + JULIA + " --project -e \"using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.build();\""
-FREE_CONVECTION_CMD = "cd Oceananigans.jl/; nohup " + JULIA + " --project examples/free_convection_mod.jl 75 0.01 128 6 8 1e-4 </dev/null >foo"
+JL_ACTIVATE_CMD = r"cd Oceananigans.jl/; " + JULIA + r" --project -e 'using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.build();'"
 
 zones = ["us-west1-b", "us-central1-b", "asia-east1-c", "europe-west4-c"]
 
