@@ -21,12 +21,11 @@ FREE_CONVECTION_CMD = "cd Oceananigans.jl/; nohup " + JULIA + " --project exampl
 zones = ["us-west1-b", "us-central1-b", "asia-east1-c", "europe-west4-c"]
 
 gpu_quotas = {
-        "us-west1-b": 16,
-        "us-central1-b": 4,
-        "asia-east1-c": 1,
-        "europe-west4-c": 1
-        }
-
+    "us-west1-b": 12,
+    "us-central1-b": 4,
+    "asia-east1-c": 1,
+    "europe-west4-c": 1
+}
 
 def spin_up_instances(name, username):
     n = 0
@@ -85,11 +84,46 @@ def run_gcloud_command(instance, username, command):
 
 def run_mass_gcloud_command(instances, username, command):
     for instance in instances:
-        run_gcloud_command(instance["zone"], username, instance["name"], command)
+        run_gcloud_command(instance, username, command)
+
+
+def run_free_convection_simulation(instance, username, N, Q, dTdz, kappa, dt, days, odir):
+    cmd = "cd Oceananigans.jl/; nohup " + JULIA + " --project examples/free_convection.jl" + \
+          " -N " + str(N) + " --heat-flux " + str(Q) + " --dTdz " + str(dTdz) + \
+          " --diffusivity " + str(kappa) + " --dt " + str(dt) + " --days " + str(days) + \
+          " --output-dir " + str(odir) + \
+          " </dev/null >foo"
+    run_gcloud_command(instance, username, cmd)
 
 
 if __name__ == "__main__":
     username = "alir"
-    instances = spin_up_instances(name="convection", username="alir")
-    delete_instances(instances, username)
-    # run_mass_gcloud_command(instances, username, PLUS_CMD)
+
+    instances = spin_up_instances(name="convection", username=username)
+    poll_processes(instances)
+
+    logger.info("We're going to wait for 5 minutes to make sure all instances are running...")
+    sleep(300)
+
+    free_convection_simulations = []
+    for Q in [-10, -50, -100]:
+        for dTdz in [0.01, 0.05, 0.005]:
+            for kappa in [1e-3, 1e-4]:
+                free_convection_simulations.append({
+                    "N": 256,
+                    "Q": Q,
+                    "dTdz": dTdz,
+                    "kappa": kappa,
+                    "dt": 3 if Q < -75 else 2,
+                    "days": 8,
+                    "odir": "~/bucket/free_convection/"
+                })
+
+    for instance, s in zip(instances, free_convection_simulations):
+        run_free_convection_simulation(instance, username, s["N"], s["Q"], s["dTdz"],
+                                       s["kappa"], s["dt"], s["days"], s["odir"])
+
+
+    # delete_instances(instances, username)
+    # poll_processes(instances)
+    # run_mass_gcloud_command(instances, username, "nvidia-smi")
