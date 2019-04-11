@@ -53,6 +53,7 @@ def spin_up_instances(name, username):
 def poll_processes(instances, sleep_time=1):
     processes_done = 0
     while processes_done < len(instances):
+        processes_done = 0
         for instance in instances:
             if instance["process"].poll() is not None:
                 processes_done += 1
