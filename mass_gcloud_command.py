@@ -1,46 +1,69 @@
 import logging
 
+from time import sleep
 from subprocess import Popen
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s.%(msecs)03d] %(funcName)s:%(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
 
-GPU_QUOTA = 4  # V100 quota on zones of interest.
+JULIA = "/opt/julia/julia-1.1.0/bin/julia"
 
-PLUS_CMD = "/opt/julia/julia-1.1.0/bin/julia -E \"1+1\""
-GIT_CLONE_CMD = "git clone https://github.com/climate-machine/Oceananigans.jl.git"
-GIT_PULL_CMD = "cd Oceananigans.jl/; git pull; git checkout as/fc"
-JL_ACTIVATE_CMD = "cd Oceananigans.jl/; /opt/julia/julia-1.1.0/bin/julia --project -e \"using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.build();\""
-FREE_CONVECTION_CMD = "cd Oceananigans.jl/; nohup /opt/julia/julia-1.1.0/bin/julia --project examples/free_convection_mod.jl 75 0.01 128 6 8 1e-4 </dev/null >foo"
+PLUS_CMD = JULIA + " -E \"1+1\""
 
-zones = ["us-central1-b", "us-west1-b", "us-east1-b", "us-east4-b", "us-west2-b"]
+MOUNT_GCSFUSE_CMD = "gcsfuse alir ~/bucket/"
+BUCKET_WRITE_TEST = "touch bucket/\`hostname\`"
+BUCKET_RM_TEST = "rm -v bucket/\`hostname\`"
 
+GIT_CLONE_CMD = "rm -rf Oceananigans.jl/; git clone https://github.com/climate-machine/Oceananigans.jl.git"
+JL_ACTIVATE_CMD = r"cd Oceananigans.jl/; " + JULIA + r" --project -e 'using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.build();'"
+JL_ADD_PKG_CMD = r"cd Oceananigans.jl/; " + JULIA + r" --project -e 'using Pkg; Pkg.add(\"ArgParse\");'"
+
+zones = ["us-west1-b", "us-central1-b", "asia-east1-c", "europe-west4-c"]
+
+gpu_quotas = {
+    "us-west1-b": 12,
+    "us-central1-b": 4,
+    "asia-east1-c": 1,
+    "europe-west4-c": 1
+}
 
 def spin_up_instances(name, username):
     n = 0
     instances = []
     for zone in zones:
-        for _ in range(GPU_QUOTA):
+        for _ in range(gpu_quotas[zone]):
             n = n + 1
-            instance_name = name + str(n) 
+            instance_name = name + str(n)
             logger.info("Spinning up instance {:s} on zone {:s}...".format(instance_name, zone))
 
             create_cmd = "gcloud --verbosity=info compute instances create " + instance_name + \
                          " --zone " + zone + \
                          " --accelerator=type=nvidia-tesla-v100,count=1 --maintenance-policy=TERMINATE" + \
                          " --boot-disk-size=500GB --local-ssd=interface=NVME" + \
-                         " --image=julia-cuda --custom-cpu=4 --custom-memory=24GB"
-            
+                         " --image=julia-cuda --custom-cpu=4 --custom-memory=24GB" + \
+                         " --scopes=storage-full"
+
             p = Popen(create_cmd, shell=True)
-
-            instances.append({"name": instance_name, "zone": zone})
-
-    # TODO? Wait until all instances have spun up? We can print periodic status updates.
+            instances.append({"name": instance_name, "zone": zone, "process": p})
 
     return instances
 
 
-def delete_instances(instances, name, username):
+def poll_processes(instances, sleep_time=1):
+    processes_done = 0
+    while processes_done < len(instances):
+        processes_done = 0
+        for instance in instances:
+            if instance["process"].poll() is not None:
+                processes_done += 1
+        if processes_done < len(instances):
+            logger.info("{:d}/{:d} processes done. Sleeping for {:f} seconds...".format(processes_done, len(instances), sleep_time))
+            sleep(sleep_time)
+        else:
+            logger.info("{:d}/{:d} processes done.".format(processes_done, len(instances)))
+
+
+def delete_instances(instances, username):
     for instance in instances:
         delete_cmd = "gcloud --verbosity=info --quiet compute instances delete " + \
                      instance["name"] + " --zone " + instance["zone"] + " --delete-disks all"
@@ -49,22 +72,58 @@ def delete_instances(instances, name, username):
         p = Popen(delete_cmd, shell=True)
 
 
-def run_gcloud_command(zone, username, instance_name, command):
-    base_cmd = r"gcloud compute ssh"
-    zone_arg = r"--zone " + zone
-    instance = username + "@" + instance_name
-    full_cmd = base_cmd + " " + zone_arg + " " + instance + " --command " + "\"" + command + "\""
-    
-    logger.info("Executing on {:s} [{:s}]: {:s}".format(instance_name, zone, full_cmd))
-    p = Popen(full_cmd, shell=True)
+def run_gcloud_command(instance, username, command):
+    base_cmd = "gcloud compute ssh"
+    zone_arg = "--zone " + instance["zone"]
+    location = username + "@" + instance["name"]
+    full_cmd = base_cmd + " " + zone_arg + " " + location + " --command " + "\"" + command + "\""
+
+    logger.info("Executing on {:s} [{:s}]: {:s}".format(instance["name"], instance["zone"], full_cmd))
+    instance["process"] = Popen(full_cmd, shell=True)
 
 
 def run_mass_gcloud_command(instances, username, command):
     for instance in instances:
-        run_gcloud_command(instance["zone"], username, instance["name"], command)
+        run_gcloud_command(instance, username, command)
+
+
+def run_free_convection_simulation(instance, username, N, Q, dTdz, kappa, dt, days, odir):
+    cmd = "cd Oceananigans.jl/; nohup " + JULIA + " --project examples/free_convection.jl" + \
+          " -N " + str(N) + " --heat-flux " + str(Q) + " --dTdz " + str(dTdz) + \
+          " --diffusivity " + str(kappa) + " --dt " + str(dt) + " --days " + str(days) + \
+          " --output-dir " + str(odir) + \
+          " </dev/null >foo"
+    run_gcloud_command(instance, username, cmd)
 
 
 if __name__ == "__main__":
     username = "alir"
-    instances = spin_up_instances(name="convection", username="alir")
-    run_mass_gcloud_command(instances, username, PLUS_CMD)
+
+    instances = spin_up_instances(name="convection", username=username)
+    poll_processes(instances)
+
+    logger.info("We're going to wait for 5 minutes to make sure all instances are running...")
+    sleep(300)
+
+    free_convection_simulations = []
+    for Q in [-10, -50, -100]:
+        for dTdz in [0.01, 0.05, 0.005]:
+            for kappa in [1e-3, 1e-4]:
+                free_convection_simulations.append({
+                    "N": 256,
+                    "Q": Q,
+                    "dTdz": dTdz,
+                    "kappa": kappa,
+                    "dt": 3 if abs(Q) < 75 else 2,
+                    "days": 8,
+                    "odir": "~/bucket/free_convection/"
+                })
+
+    for instance, s in zip(instances, free_convection_simulations):
+        run_free_convection_simulation(instance, username, s["N"], s["Q"], s["dTdz"],
+                                       s["kappa"], s["dt"], s["days"], s["odir"])
+
+
+    # delete_instances(instances, username)
+    # poll_processes(instances)
+    # run_mass_gcloud_command(instances, username, "nvidia-smi")
