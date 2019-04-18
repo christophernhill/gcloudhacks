@@ -96,7 +96,7 @@ def run_free_convection_simulation(instance, username, N, Q, dTdz, kappa, dt, da
 
 def run_wind_stress_simulation(instance, username, N, tau, Q, dTdz, kappa, dt, days, odir):
     cmd = "cd Oceananigans.jl/; nohup " + JULIA + " --project examples/wind_stress.jl" + \
-          " -N " + str(N) + " --wind-stress" + str(tau) + " --heat-flux " + str(Q) + " --dTdz " + str(dTdz) + \
+          " -N " + str(N) + " --wind-stress " + str(tau) + " --heat-flux " + str(Q) + " --dTdz " + str(dTdz) + \
           " --diffusivity " + str(kappa) + " --dt " + str(dt) + " --days " + str(days) + \
           " --output-dir " + str(odir)
     run_gcloud_command(instance, username, cmd)
