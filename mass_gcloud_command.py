@@ -40,7 +40,7 @@ def spin_up_instances(name, username):
                          " --zone " + zone + \
                          " --accelerator=type=nvidia-tesla-v100,count=1 --maintenance-policy=TERMINATE" + \
                          " --boot-disk-size=500GB --local-ssd=interface=NVME" + \
-                         " --image=julia-cuda --custom-cpu=4 --custom-memory=24GB" + \
+                         " --image=julia-cuda --custom-cpu=2 --custom-memory=12GB" + \
                          " --scopes=storage-full"
 
             p = Popen(create_cmd, shell=True)
