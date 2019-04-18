@@ -40,7 +40,7 @@ def spin_up_instances(name, username):
                          " --zone " + zone + \
                          " --accelerator=type=nvidia-tesla-v100,count=1 --maintenance-policy=TERMINATE" + \
                          " --boot-disk-size=500GB --local-ssd=interface=NVME" + \
-                         " --image=julia-cuda --custom-cpu=4 --custom-memory=24GB" + \
+                         " --image=julia-cuda --custom-cpu=2 --custom-memory=12GB" + \
                          " --scopes=storage-full"
 
             p = Popen(create_cmd, shell=True)
@@ -91,10 +91,15 @@ def run_free_convection_simulation(instance, username, N, Q, dTdz, kappa, dt, da
     cmd = "cd Oceananigans.jl/; nohup " + JULIA + " --project examples/free_convection.jl" + \
           " -N " + str(N) + " --heat-flux " + str(Q) + " --dTdz " + str(dTdz) + \
           " --diffusivity " + str(kappa) + " --dt " + str(dt) + " --days " + str(days) + \
-          " --output-dir " + str(odir) + \
-          " </dev/null >foo"
+          " --output-dir " + str(odir)
     run_gcloud_command(instance, username, cmd)
 
+def run_wind_stress_simulation(instance, username, N, tau, Q, dTdz, kappa, dt, days, odir):
+    cmd = "cd Oceananigans.jl/; nohup " + JULIA + " --project examples/wind_stress.jl" + \
+          " -N " + str(N) + " --wind-stress " + str(tau) + " --heat-flux " + str(Q) + " --dTdz " + str(dTdz) + \
+          " --diffusivity " + str(kappa) + " --dt " + str(dt) + " --days " + str(days) + \
+          " --output-dir " + str(odir)
+    run_gcloud_command(instance, username, cmd)
 
 if __name__ == "__main__":
     username = "alir"
@@ -123,6 +128,24 @@ if __name__ == "__main__":
         run_free_convection_simulation(instance, username, s["N"], s["Q"], s["dTdz"],
                                        s["kappa"], s["dt"], s["days"], s["odir"])
 
+    wind_stress_simulations = []
+    for Q in [10, 0, -75]:
+        for dTdz in [0.01, 0.001]:
+            for tau in [0, 0.04, 0.1]:
+                wind_stress_simulations.append({
+                    "N": 256,
+                    "tau": tau,
+                    "Q": Q,
+                    "dTdz": dTdz,
+                    "kappa": 1e-4,
+                    "dt": 0.25,
+                    "days": 6,
+                    "odir": "~/bucket/free_convection/"
+                })
+
+    for instance, s in zip(instances, wind_stress_simulations):
+        run_free_convection_simulation(instance, username, s["N"], s["tau"], s["Q"], s["dTdz"],
+                                       s["kappa"], s["dt"], s["days"], s["odir"])
 
     # delete_instances(instances, username)
     # poll_processes(instances)
