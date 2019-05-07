@@ -1,5 +1,7 @@
 Binderhub commands
 
-```gcloud container --quiet clusters create --async cnh-esschool2019-001 --num-nodes 1 --zone us-west1-b```
+```gcloud container  clusters create  --num-nodes 1 --zone us-west1-b --cluster-version  latest cnh-esschool2019-001```
 
 ```kubectl get node```
+
+
