@@ -41,4 +41,15 @@ helm repo update
 ```
 
 ```
+helm install jupyterhub/binderhub --version=0.2.0-3b53fce  --name=bhub01 --namespace=bhub01 -f secret.yaml -f config.yaml
+```
+
+```
+kubectl --namespace=bhub01 get svc proxy-public
+```
+
+edit ```config.yaml```
+
+```
+helm upgrade bhub01 jupyterhub/binderhub --version=0.2.0-3b53fce  -f secret.yaml -f config.yaml
 ```
