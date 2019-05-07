@@ -1,6 +1,11 @@
 Binderhub commands
+```
+export CLUSTER_NAME=cnh-esschool2019-001
+export NAMESPACE=bhub01
+export CNAME=bhub01
+```
 
-```gcloud container  clusters create  --machine-type n1-standard-2 --num-nodes 2 --zone us-west1-b --cluster-version  latest cnh-esschool2019-001```
+```gcloud container  clusters create  --machine-type n1-standard-2 --num-nodes 2 --zone us-west1-b --cluster-version  latest ${CLUSTER_NAME}```
 
 ```kubectl get node```
 
@@ -45,11 +50,11 @@ helm repo update
 ```
 
 ```
-helm install jupyterhub/binderhub --version=0.2.0-3b53fce  --name=bhub01 --namespace=bhub01 -f secret.yaml -f config.yaml
+helm install jupyterhub/binderhub --version=0.2.0-3b53fce  --name=${CNAME} --namespace=${NAMESPACE} -f secret.yaml -f config.yaml
 ```
 
 ```
-kubectl --namespace=bhub01 get svc proxy-public
+kubectl --namespace=${NAMESPACE} get svc proxy-public
 ```
 
 edit ```config.yaml```
