@@ -5,6 +5,10 @@ Binderhub commands
 ```kubectl get node```
 
 ```
+kubectl create clusterrolebinding cluster-admin-binding   --clusterrole=cluster-admin   --user=cnh-google@mit.edu
+```
+
+```
 gcloud beta container node-pools create user-pool \
   --zone us-west1-b \
   --cluster cnh-esschool2019-001 \
